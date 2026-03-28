@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Finance Control - Juan Fonte</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Finance Control</h1>
+            <p class="subtitle">Manage your income and expenses - Juan Fonte</p>
+        </header>
+
+        <section class="balance-summary">
+            <div class="summary-card balance">
+                <h3>Total Balance</h3>
+                <p class="amount" id="totalBalance">
+                    {% if balance >= 0 %}
+                        +$ {{ "%.2f"|format(balance) }}
+                    {% else %}
+                        -$ {{ "%.2f"|format(abs(balance)) }}
+                    {% endif %}
+                </p>
+            </div>
+            <div class="summary-card income">
+                <h3>Total Income</h3>
+                <p class="amount">+$ {{ "%.2f"|format(income_total) }}</p>
+            </div>
+            <div class="summary-card expense">
+                <h3>Total Expenses</h3>
+                <p class="amount">-$ {{ "%.2f"|format(expense_total) }}</p>
+            </div>
+        </section>
+
+        <!-- Add Transaction Form -->
+        <   <h2>Add New Transaction</h2>
+            <form method="POST" action="{{ url_for('add_transaction') }}" class="transaction-form">
+                <div class="form-group">
+                    <label for="type">Type:</label>
+                    <select id="type" name="type" required>
+                        <option value="">Select type</option>
+                        <option value="income">Income</option>
+                        <option value="expense">Expense</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="amount">Amount:</label>
+                    <input type="number" id="amount" name="amount" step="0.01" min="0.01" required placeholder="0.00">
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <input type="text" id="description" name="description" required placeholder="e.g., Salary, Grocery, etc.">
+                </div>
+
+                <div class="form-group">
+                    <label for="date">Date:</label>
+                    <input type="date" id="date" name="date" value="{{ now.strftime('%Y-%m-%d') }}">
+                </div>
+
+                <button type="submit" class="btn-submit">Add Transaction</button>
+            </form>
+        </section>
+
+        <!-- Filter Section -->
+        <   <h2>Transaction History</h2>
+            <div class="filter-buttons">
+                <a href="{{ url_for('index', filter='all') }}" class="filter-btn {% if current_filter == 'all' %}active{% endif %}">All</a>
+                <a href="{{ url_for('index', filter='income') }}" class="filter-btn income-btn {% if current_filter == 'income' %}active{% endif %}">Income</a>
+                <a href="{{ url_for('index', filter='expense') }}" class="filter-btn expense-btn {% if current_filter == 'expense' %}active{% endif %}">Expenses</a>
+            </div>
+        </section>
+
+        <!-- Transactions Table -->
+        <   {% if transactions %}
+                <table class="transactions-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions|reverse %}
+                            <tr class="transaction-row {% if transaction.type == 'income' %}income-row{% else %}expense-row{% endif %}">
+                                <td class="date-cell">{{ transaction.date }}</td>
+                                <td class="description-cell">{{ transaction.description }}</td>
+                                <td class="type-cell">
+                                    <span class="badge {% if transaction.type == 'income' %}badge-income{% else %}badge-expense{% endif %}">
+                                        {% if transaction.type == 'income' %}Income{% else %}Expense{% endif %}
+                                    </span>
+                                </td>
+                                <td class="amount-cell {% if transaction.type == 'income' %}amount-income{% else %}amount-expense{% endif %}">
+                                    {% if transaction.type == 'income' %}
+                                        +$ {{ transaction.amount|float|round(2) }}
+                                    {% else %}
+                                        -$ {{ transaction.amount|float|round(2) }}
+                                    {% endif %}
+                                </td>
+                                <td class="action-cell">
+                                    <form method="POST" action="{{ url_for('delete_transaction', transaction_id=transaction.id) }}" style="display: inline;">
+                                        <button type="submit" class="btn-delete" onclick="return confirm('Are you sure?')">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="empty-state">
+                    <p>No transactions yet. Add one to get started!</p>
+                </div>
+            {% endif %}
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; Create By Juan Fonte </p>
+        </footer>
+    </div>
+
+    <script>
+        document.getElementById('date').valueAsDate = new Date();
+
+        async function updateBalance() {
+            try {
+                const response = await fetch('{{ url_for("api_balance") }}');
+                const data = await response.json();
+                const balanceElement = document.getElementById('totalBalance');
+                if (data.balance >= 0) {
+                    balanceElement.textContent = `+$ ${data.balance.toFixed(2)}`;
+                } else {
+                    balanceElement.textContent = `-$ ${Math.abs(data.balance).toFixed(2)}`;
+                }
+            } catch (error) {
+                console.error('Error updating balance:', error);
+            }
+        }
+
+        setInterval(updateBalance, 2000);
+    </script>
+</body>
+</html>
